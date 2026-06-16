@@ -23,7 +23,7 @@ API="https://api.vercel.com"
 PREF_TEAM="${VERCEL_TEAM:-resum-ai-64a9b374}"   # tried first; falls back to all teams
 
 if [ -f .env.vercel.local ]; then set -a; . ./.env.vercel.local; set +a; fi
-WEB_PROJECT="${WEB_PROJECT:-resume-ai-web}"
+WEB_PROJECT="${WEB_PROJECT:-resum-ai-web}"
 API_PROJECT="${API_PROJECT:-resumeforge-api}"
 JWT_SIGNING_SECRET="${JWT_SIGNING_SECRET:-$(openssl rand -hex 32)}"
 
