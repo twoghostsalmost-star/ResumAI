@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  resumes           Resume[]
+  uploadedFiles     UploadedFile[]
+  linkedInConnection LinkedInConnection?
+}
+
+model Resume {
+  id                   String   @id @default(cuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title                String   @default("Untitled Resume")
+  targetRole           String?
+  targetJobDescription String?
+  source               String   @default("scratch") // scratch | upload | linkedin
+
+  // Canonical structured resume model (validated against @resumeforge/shared ResumeSchema)
+  data                 Json
+  atsScore             Json?
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  conversation         ConversationTurn[]
+  exports              ExportArtifact[]
+}
+
+model ConversationTurn {
+  id        String   @id @default(cuid())
+  resumeId  String
+  resume    Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  role      String   // user | assistant
+  content   String
+  patches   Json?    // proposed ResumePatch[] for assistant turns
+  createdAt DateTime @default(now())
+}
+
+model UploadedFile {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storageKey String   // S3 key
+  mimeType   String
+  status     String   @default("pending") // pending | parsed | failed
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime // retention: deleted after grace window
+}
+
+model ExportArtifact {
+  id            String   @id @default(cuid())
+  resumeId      String
+  resume        Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  format        String   // pdf | docx
+  storageKey    String
+  resumeVersion DateTime // resume.updatedAt at export time
+  shareToken    String?  @unique
+  shareExpires  DateTime?
+  createdAt     DateTime @default(now())
+}
+
+model LinkedInConnection {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedInSub  String   // OpenID Connect subject
+  accessToken  String   // encrypted at rest
+  createdAt    DateTime @default(now())
+}

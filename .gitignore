@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Expo
+.expo/
+.expo-shared/
+web-build/
+
+# Env
+.env
+.env.local
+.env*.local
+
+# Prisma
+apps/api/prisma/migrations/dev.db*
+
+# Native / iOS
+apps/ios/**/build/
+apps/ios/**/DerivedData/
+apps/ios/**/*.xcuserstate
+apps/ios/**/xcuserdata/
+Pods/
+*.xcworkspace/xcuserdata/
+
+# OS / editor
+.DS_Store
+*.log
+.vscode/
+.idea/
+
+# Vercel
+.vercel

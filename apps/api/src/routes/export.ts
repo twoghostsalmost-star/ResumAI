@@ -1,0 +1,119 @@
+import { FastifyInstance } from "fastify";
+import { ResumeSchema, Resume } from "@resumeforge/shared";
+import { prisma } from "../db.js";
+import { renderResumeHtml } from "../pipeline/export-html.js";
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  HeadingLevel,
+} from "docx";
+
+async function renderPdf(html: string): Promise<Buffer> {
+  // Real Playwright render. Requires `npx playwright install chromium` and a
+  // runtime that allows launching Chromium (not an offline sandbox).
+  const { chromium } = await import("playwright");
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle" });
+    const pdf = await page.pdf({ format: "Letter", printBackground: true });
+    return pdf;
+  } finally {
+    await browser.close();
+  }
+}
+
+async function renderDocx(resume: Resume): Promise<Buffer> {
+  const children: Paragraph[] = [
+    new Paragraph({ text: resume.basics.fullName, heading: HeadingLevel.TITLE }),
+  ];
+  if (resume.basics.headline) children.push(new Paragraph({ text: resume.basics.headline }));
+  const contact = [resume.basics.email, resume.basics.phone, resume.basics.location]
+    .filter(Boolean)
+    .join("  ·  ");
+  if (contact) children.push(new Paragraph({ children: [new TextRun({ text: contact, size: 18 })] }));
+
+  if (resume.basics.summary) {
+    children.push(new Paragraph({ text: "Summary", heading: HeadingLevel.HEADING_1 }));
+    children.push(new Paragraph({ text: resume.basics.summary }));
+  }
+
+  for (const section of resume.sections) {
+    if (section.type === "experience") {
+      children.push(new Paragraph({ text: "Experience", heading: HeadingLevel.HEADING_1 }));
+      for (const i of section.items) {
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: `${i.role}`, bold: true }),
+              new TextRun({ text: `  —  ${i.company}` }),
+            ],
+          })
+        );
+        for (const b of i.bullets) children.push(new Paragraph({ text: b, bullet: { level: 0 } }));
+      }
+    } else if (section.type === "education") {
+      children.push(new Paragraph({ text: "Education", heading: HeadingLevel.HEADING_1 }));
+      for (const i of section.items) {
+        children.push(
+          new Paragraph({
+            children: [new TextRun({ text: i.institution, bold: true }), new TextRun({ text: `  —  ${i.degree ?? ""}` })],
+          })
+        );
+      }
+    } else if (section.type === "skills") {
+      children.push(new Paragraph({ text: "Skills", heading: HeadingLevel.HEADING_1 }));
+      for (const g of section.groups) {
+        children.push(new Paragraph({ text: `${g.name ? g.name + ": " : ""}${g.skills.join(", ")}` }));
+      }
+    } else if (section.type === "projects") {
+      children.push(new Paragraph({ text: "Projects", heading: HeadingLevel.HEADING_1 }));
+      for (const i of section.items) {
+        children.push(new Paragraph({ children: [new TextRun({ text: i.name, bold: true })] }));
+        for (const b of i.bullets) children.push(new Paragraph({ text: b, bullet: { level: 0 } }));
+      }
+    } else if (section.type === "certifications") {
+      children.push(new Paragraph({ text: "Certifications", heading: HeadingLevel.HEADING_1 }));
+      for (const i of section.items)
+        children.push(new Paragraph({ text: `${i.name}${i.issuer ? " — " + i.issuer : ""}`, bullet: { level: 0 } }));
+    } else if (section.type === "custom") {
+      children.push(new Paragraph({ text: section.heading, heading: HeadingLevel.HEADING_1 }));
+      for (const i of section.items) children.push(new Paragraph({ text: i.text, bullet: { level: 0 } }));
+    }
+  }
+
+  const doc = new Document({ sections: [{ children }] });
+  return Packer.toBuffer(doc);
+}
+
+export async function exportRoutes(app: FastifyInstance) {
+  app.post("/resumes/:id/export", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const format = ((req.query as any).format ?? "pdf") as "pdf" | "docx" | "html";
+
+    const row = await prisma.resume.findUnique({ where: { id } });
+    if (!row) return reply.code(404).send({ error: "not_found" });
+    const resume = ResumeSchema.parse({ ...(row.data as object), id: row.id, userId: row.userId });
+
+    if (format === "html") {
+      reply.header("content-type", "text/html; charset=utf-8");
+      return renderResumeHtml(resume);
+    }
+    if (format === "docx") {
+      const buf = await renderDocx(resume);
+      reply
+        .header("content-type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        .header("content-disposition", `attachment; filename="${resume.title}.docx"`);
+      return reply.send(buf);
+    }
+    // pdf
+    const html = renderResumeHtml(resume);
+    const buf = await renderPdf(html);
+    reply
+      .header("content-type", "application/pdf")
+      .header("content-disposition", `attachment; filename="${resume.title}.pdf"`);
+    return reply.send(buf);
+  });
+}

@@ -1,0 +1,18 @@
+{
+  "name": "resumeforge",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.0.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "pnpm --filter @resumeforge/api dev",
+    "dev:mobile": "pnpm --filter @resumeforge/mobile start",
+    "build:shared": "pnpm --filter @resumeforge/shared build",
+    "db:migrate": "pnpm --filter @resumeforge/api prisma migrate dev",
+    "db:generate": "pnpm --filter @resumeforge/api prisma generate",
+    "infra:up": "docker compose -f docker/docker-compose.yml up -d"
+  }
+}
