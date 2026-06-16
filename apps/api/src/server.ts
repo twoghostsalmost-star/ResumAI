@@ -10,12 +10,26 @@ import { voiceRoutes } from "./routes/voice.js";
 import { shareRoutes } from "./routes/share.js";
 import { accountRoutes } from "./routes/account.js";
 import { linkedinRoutes } from "./routes/linkedin.js";
+import { oauthRoutes } from "./routes/oauth.js";
 import { registerAuthDecorator } from "./lib/auth.js";
 import { config } from "./config.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true, bodyLimit: 25 * 1024 * 1024 });
   await app.register(cors, { origin: true });
+
+  // Apple's "Sign in with Apple" posts the OAuth result as form-urlencoded.
+  app.addContentTypeParser(
+    "application/x-www-form-urlencoded",
+    { parseAs: "string" },
+    (_req, body, done) => {
+      try {
+        done(null, Object.fromEntries(new URLSearchParams(body as string)));
+      } catch (err) {
+        done(err as Error);
+      }
+    }
+  );
 
   // Accept raw audio bodies for the voice STT proxy.
   app.addContentTypeParser(
@@ -46,6 +60,7 @@ export async function buildServer() {
   await app.register(shareRoutes);
   await app.register(accountRoutes);
   await app.register(linkedinRoutes);
+  await app.register(oauthRoutes);
 
   return app;
 }
