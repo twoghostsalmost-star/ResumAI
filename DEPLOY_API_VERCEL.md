@@ -57,13 +57,32 @@ Add these under **Settings → Environment Variables** (Production + Preview):
 | `DATABASE_URL` | the **direct** Neon string from Step 1 |
 | `JWT_SIGNING_SECRET` | any long random string (`openssl rand -hex 32`) |
 | `PUBLIC_BASE_URL` | leave blank for now; set after first deploy to the API's URL |
+| `WEB_BASE_URL` | your web app's Vercel URL (where login redirects back) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Sign in with Google (Google Cloud Console) |
+| `APPLE_CLIENT_ID` | Sign in with Apple — your Services ID, e.g. `com.resumai.web` |
+| `APPLE_TEAM_ID` / `APPLE_KEY_ID` | Apple Team ID + the Key ID of the .p8 key |
+| `APPLE_PRIVATE_KEY` | contents of the .p8 file (newlines `\n`-escaped on one line) |
 | `ANTHROPIC_API_KEY` | *(optional)* enables the AI assistant + richer parsing |
 | `STT_API_KEY` / `TTS_API_KEY` | *(optional)* voice |
-| `LINKEDIN_CLIENT_ID` / `_SECRET` / `_REDIRECT_URI` | *(optional)* LinkedIn sign-in |
+| `LINKEDIN_CLIENT_ID` / `_SECRET` / `_REDIRECT_URI` | *(optional)* LinkedIn profile import |
 
 If you added the Neon connector and it auto-set a `DATABASE_URL` pointing at the
 **pooled** host, override it with the direct string (or the build's `db push`
 may fail).
+
+### Register the OAuth redirect URIs
+
+After the API has a URL, add these as authorized redirect/return URIs in each
+console (they're built from `PUBLIC_BASE_URL`):
+
+- **Google** (Cloud Console → Credentials → your OAuth client):
+  `https://<your-api-project>.vercel.app/auth/google/callback`
+- **Apple** (Developer → Identifiers → your Services ID → Return URLs):
+  `https://<your-api-project>.vercel.app/auth/apple/callback`
+
+Until `GOOGLE_*` / `APPLE_*` are set, the sign-in buttons render but report a
+clear "not configured" error (the API returns the browser to the app with
+`?authError=…`). The passwordless email sign-in works without any of them.
 
 ## Step 4 — Deploy
 
