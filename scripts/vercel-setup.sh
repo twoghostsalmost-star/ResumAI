@@ -19,7 +19,8 @@ set -uo pipefail
 API="https://api.vercel.com"
 
 : "${VERCEL_TOKEN:?set VERCEL_TOKEN (https://vercel.com/account/tokens)}"
-TEAM="${VERCEL_TEAM:-}"
+# Defaults to the resumAI team; override with VERCEL_TEAM (slug or team_… id).
+TEAM="${VERCEL_TEAM:-resum-ai-64a9b374}"
 
 # Load secret values from a gitignored file if present (.env*.local is ignored).
 if [ -f .env.vercel.local ]; then set -a; . ./.env.vercel.local; set +a; fi
