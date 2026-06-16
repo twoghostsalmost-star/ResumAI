@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useResumeStore } from "@/lib/store";
@@ -23,6 +23,23 @@ const TABS: TabDef<TabKey>[] = [
 ];
 
 export default function ResumeEditorPage() {
+  return (
+    <Suspense
+      fallback={
+        <>
+          <AppBar />
+          <div className="center-screen">
+            <span className="spinner" />
+          </div>
+        </>
+      }
+    >
+      <ResumeEditor />
+    </Suspense>
+  );
+}
+
+function ResumeEditor() {
   const { ready, authed } = useRequireAuth();
   const params = useParams<{ id: string }>();
   const id = params.id;

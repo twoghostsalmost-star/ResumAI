@@ -12,7 +12,10 @@ export function AtsPanel({ resumeId }: { resumeId: string }) {
   const setResume = useResumeStore((s) => s.setResume);
   const acceptPatches = useResumeStore((s) => s.acceptPatches);
 
-  const [score, setScore] = useState<AtsScoreResult | null>(resume?.atsScore ?? null);
+  // `atsScore` is attached at runtime by the API but not part of the zod Resume type.
+  const initialScore =
+    (resume as { atsScore?: AtsScoreResult | null } | null)?.atsScore ?? null;
+  const [score, setScore] = useState<AtsScoreResult | null>(initialScore);
   const [running, setRunning] = useState(false);
   const [fixingId, setFixingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
