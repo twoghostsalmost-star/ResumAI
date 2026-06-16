@@ -11,10 +11,13 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  // scrypt-hashed password ("scrypt$<saltHex>$<hashHex>"). Nullable so users
+  // created before email+password auth (or via other flows) still load.
+  passwordHash String?
+  createdAt    DateTime @default(now())
 
   resumes           Resume[]
   uploadedFiles     UploadedFile[]
