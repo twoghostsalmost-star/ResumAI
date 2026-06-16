@@ -56,14 +56,26 @@ Add these under **Settings → Environment Variables** (Production + Preview):
 |---|---|
 | `DATABASE_URL` | the **direct** Neon string from Step 1 |
 | `JWT_SIGNING_SECRET` | any long random string (`openssl rand -hex 32`) |
-| `PUBLIC_BASE_URL` | leave blank for now; set after first deploy to the API's URL |
+| `DESCOPE_PROJECT_ID` | your Descope project id (also set as `NEXT_PUBLIC_DESCOPE_PROJECT_ID` on the web project) |
+| `DESCOPE_MANAGEMENT_KEY` | *(optional)* only needed if email isn't in the Descope session JWT |
+| `PUBLIC_BASE_URL` | leave blank for now; set after first deploy to the API's URL (share links) |
 | `ANTHROPIC_API_KEY` | *(optional)* enables the AI assistant + richer parsing |
 | `STT_API_KEY` / `TTS_API_KEY` | *(optional)* voice |
-| `LINKEDIN_CLIENT_ID` / `_SECRET` / `_REDIRECT_URI` | *(optional)* LinkedIn sign-in |
+| `LINKEDIN_CLIENT_ID` / `_SECRET` / `_REDIRECT_URI` | *(optional)* LinkedIn profile import |
 
 If you added the Neon connector and it auto-set a `DATABASE_URL` pointing at the
-**pooled** host, override it with the direct string (or the build's `db push`
-may fail).
+**pooled** host, the build handles it — `prisma db push` automatically uses the
+non-pooled URL the connector also injects.
+
+### Auth is handled by Descope (no redirect URIs here)
+
+Google, Apple, and passwordless sign-in are all configured **inside the Descope
+console** (Authentication Methods + the `sign-up-or-in` flow), so there are no
+provider secrets or callback URLs to register in Vercel. The web app runs the
+Descope flow and posts the session token to `POST /auth/descope`, which the API
+validates and exchanges for its own session token. You only need
+`DESCOPE_PROJECT_ID` (API) and `NEXT_PUBLIC_DESCOPE_PROJECT_ID` (web) — both the
+same public id.
 
 ## Step 4 — Deploy
 

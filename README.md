@@ -67,8 +67,17 @@ routes, and every client UI.
 - `STT_*` / `TTS_*` → voice mode. `LINKEDIN_*` → OAuth (PDF-import fallback otherwise).
 
 ## Deploying
-- **Web → Vercel:** project Root Directory `apps/web`, set
-  `NEXT_PUBLIC_API_BASE_URL`. Each push creates a preview deployment.
+
+**Low-touch (one click each, env vars collected during import):** see
+[`DEPLOY.md`](DEPLOY.md). Deploy the **API first**, then the web app.
+
+[![Deploy API](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Ftwoghostsalmost-star%2FResumAI&root-directory=apps%2Fapi&project-name=resumai-api&repository-name=resumai-api&env=DATABASE_URL,JWT_SIGNING_SECRET,DESCOPE_PROJECT_ID&envDescription=Neon%20DATABASE_URL%20%2B%20JWT%20secret%20%2B%20Descope%20project%20id&envLink=https%3A%2F%2Fgithub.com%2Ftwoghostsalmost-star%2FResumAI%2Fblob%2Fmain%2FDEPLOY_API_VERCEL.md&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%7D%5D)
+&nbsp;
+[![Deploy Web](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Ftwoghostsalmost-star%2FResumAI&root-directory=apps%2Fweb&project-name=resumai-web&repository-name=resumai-web&env=NEXT_PUBLIC_API_BASE_URL,NEXT_PUBLIC_DESCOPE_PROJECT_ID&envDescription=API%20URL%20%2B%20Descope%20project%20id%20(both%20public)&envLink=https%3A%2F%2Fgithub.com%2Ftwoghostsalmost-star%2FResumAI%2Fblob%2Fmain%2FDEPLOY.md)
+
+Manual / other targets:
+- **Web → Vercel:** Root Directory `apps/web`, set `NEXT_PUBLIC_API_BASE_URL`.
+- **API → Vercel + Neon:** [`DEPLOY_API_VERCEL.md`](DEPLOY_API_VERCEL.md).
 - **API → container:** `docker/Dockerfile.api` (bundles Chromium for PDF).
 - **iOS → TestFlight** (Xcode 26) / **RN → EAS Build**.
 
