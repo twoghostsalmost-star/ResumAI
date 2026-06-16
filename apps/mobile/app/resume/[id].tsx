@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   View, Text, ScrollView, TextInput, Pressable, StyleSheet,
-  useWindowDimensions, ActivityIndicator, Linking, Alert,
+  useWindowDimensions, ActivityIndicator, Linking, Alert, Share,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import type { AtsScoreResult, ResumePatch } from "@resumeforge/shared";
@@ -46,6 +46,19 @@ export default function Editor() {
               <Text style={styles.btnAltText}>Export DOCX</Text>
             </Pressable>
           </View>
+          <Pressable
+            style={[styles.btnAlt, { marginTop: 10, alignSelf: "stretch" }]}
+            onPress={async () => {
+              try {
+                const { url } = await api.share(resume.id);
+                await Share.share({ message: url, url });
+              } catch (e: any) {
+                Alert.alert("Share failed", String(e?.message ?? e));
+              }
+            }}
+          >
+            <Text style={styles.btnAltText}>Share link</Text>
+          </Pressable>
         </ScrollView>
       )}
 

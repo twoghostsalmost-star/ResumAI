@@ -9,8 +9,13 @@
   ],
   "scripts": {
     "dev:api": "pnpm --filter @resumeforge/api dev",
+    "dev:web": "pnpm --filter @resumeforge/web dev",
     "dev:mobile": "pnpm --filter @resumeforge/mobile start",
     "build:shared": "pnpm --filter @resumeforge/shared build",
+    "build:web": "pnpm --filter @resumeforge/web build",
+    "build:api": "pnpm --filter @resumeforge/api build",
+    "typecheck": "pnpm --filter @resumeforge/shared build && pnpm --filter @resumeforge/api build && pnpm --filter @resumeforge/web lint",
+    "test": "pnpm --filter @resumeforge/api test",
     "db:migrate": "pnpm --filter @resumeforge/api prisma migrate dev",
     "db:generate": "pnpm --filter @resumeforge/api prisma generate",
     "infra:up": "docker compose -f docker/docker-compose.yml up -d"

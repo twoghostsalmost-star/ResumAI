@@ -1,14 +1,13 @@
 import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { api } from "../lib/api";
-import { DEMO_USER_ID } from "../store/useResumeStore";
 
 export default function NewResume() {
   const router = useRouter();
 
-  async function start(source: "scratch" | "upload" | "linkedin") {
+  async function startScratch() {
     try {
-      const resume = await api.createResume(DEMO_USER_ID, "Untitled Resume", source);
+      const resume = await api.createResume(undefined, "Untitled Resume", "scratch");
       router.replace(`/resume/${resume.id}`);
     } catch (e: any) {
       Alert.alert("Could not create resume", String(e?.message ?? e));
@@ -17,17 +16,17 @@ export default function NewResume() {
 
   return (
     <View style={styles.container}>
-      <Pressable style={styles.option} onPress={() => start("scratch")}>
+      <Pressable style={styles.option} onPress={startScratch}>
         <Text style={styles.optTitle}>Build from scratch</Text>
         <Text style={styles.optSub}>Voice or guided conversation, with a form fallback.</Text>
       </Pressable>
-      <Pressable style={styles.option} onPress={() => start("upload")}>
+      <Pressable style={styles.option} onPress={() => router.replace("/import")}>
         <Text style={styles.optTitle}>Upload a resume</Text>
-        <Text style={styles.optSub}>PDF or DOCX — we parse it into editable sections.</Text>
+        <Text style={styles.optSub}>Paste or pick your resume — we parse it into editable sections.</Text>
       </Pressable>
-      <Pressable style={styles.option} onPress={() => start("linkedin")}>
+      <Pressable style={styles.option} onPress={() => router.replace("/import")}>
         <Text style={styles.optTitle}>Import from LinkedIn</Text>
-        <Text style={styles.optSub}>Sign in to seed basics, or upload your profile PDF for full history.</Text>
+        <Text style={styles.optSub}>Save your profile to PDF, then import it for full history.</Text>
       </Pressable>
     </View>
   );
