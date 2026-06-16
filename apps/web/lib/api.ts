@@ -148,7 +148,10 @@ export const api = {
   // ---- linkedin ----
   linkedinAuthUrl: () => req<LinkedInAuthUrl>("/linkedin/auth-url"),
 
-  // ---- social sign-in (full-page redirects handled by the API) ----
-  googleSignInUrl: `${API_BASE}/auth/google/start`,
-  appleSignInUrl: `${API_BASE}/auth/apple/start`,
+  // ---- Descope: exchange a validated Descope session JWT for an app token ----
+  exchangeDescope: (sessionToken: string) =>
+    req<AuthSessionResponse>("/auth/descope", {
+      method: "POST",
+      body: { sessionToken },
+    }),
 };
