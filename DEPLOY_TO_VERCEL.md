@@ -69,10 +69,10 @@ docker build -f docker/Dockerfile.api -t resumeforge-api .
 docker run -p 3000:3000 --env-file .env resumeforge-api
 ```
 
-Good hosts: Fly.io, Render, Railway, AWS ECS. Required env: `DATABASE_URL`
-(Postgres), `JWT_SIGNING_SECRET`, `PUBLIC_BASE_URL`. Optional: `ANTHROPIC_API_KEY`
-(LLM assistant + richer parsing), `STT_*`/`TTS_*` (voice), `LINKEDIN_*`. Run
-`pnpm db:generate && pnpm db:migrate` once against your database.
+**The easiest path is the one-click Render Blueprint** — see
+[`DEPLOY_API.md`](DEPLOY_API.md), which provisions Postgres + the API and wires
+them together (the container runs `prisma db push` on boot, so no manual
+migration). Railway and Fly.io instructions are there too.
 
 Then set the web app's `NEXT_PUBLIC_API_BASE_URL` to that API's URL and redeploy
 (or just push — the env var is read at build/runtime).

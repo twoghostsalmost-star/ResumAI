@@ -1,0 +1,57 @@
+# Render Blueprint — one-click deploy of the ResumeForge API + Postgres.
+#
+# Usage: Render dashboard → New + → Blueprint → connect this repo. Render reads
+# this file, provisions the database and the Dockerized API, and wires
+# DATABASE_URL automatically. The container runs `prisma db push` on boot to
+# create tables, so no manual migration step is needed.
+#
+# After it's live, set PUBLIC_BASE_URL to the service's URL (and, optionally,
+# ANTHROPIC_API_KEY / STT_* / TTS_* / LINKEDIN_*), then point the web app's
+# NEXT_PUBLIC_API_BASE_URL at it.
+
+databases:
+  - name: resumeforge-db
+    databaseName: resumeforge
+    user: resumeforge
+    plan: free
+
+services:
+  - type: web
+    name: resumeforge-api
+    runtime: docker
+    dockerfilePath: ./docker/Dockerfile.api
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: resumeforge-db
+          property: connectionString
+      - key: JWT_SIGNING_SECRET
+        generateValue: true
+      - key: PORT
+        value: "3000"
+      # Set after first deploy to the service's public URL (used for share links).
+      - key: PUBLIC_BASE_URL
+        sync: false
+      # Optional provider keys — leave blank to run with graceful degradation.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: claude-sonnet-4-6
+      - key: STT_PROVIDER
+        value: deepgram
+      - key: STT_API_KEY
+        sync: false
+      - key: TTS_PROVIDER
+        value: openai
+      - key: TTS_API_KEY
+        sync: false
+      - key: LINKEDIN_CLIENT_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: LINKEDIN_REDIRECT_URI
+        sync: false

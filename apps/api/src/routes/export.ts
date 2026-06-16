@@ -10,16 +10,33 @@ import {
   HeadingLevel,
 } from "docx";
 
+/** Thrown when Chromium isn't available in the runtime (e.g. a serverless host
+ * without the browser). Lets the route degrade to a clear 503 instead of a 500
+ * stack trace; DOCX/HTML export keep working. */
+class PdfUnavailableError extends Error {}
+
 async function renderPdf(html: string): Promise<Buffer> {
   // Real Playwright render. Requires `npx playwright install chromium` and a
-  // runtime that allows launching Chromium (not an offline sandbox).
-  const { chromium } = await import("playwright");
-  const browser = await chromium.launch();
+  // runtime that allows launching Chromium (present in docker/Dockerfile.api).
+  let chromium;
+  try {
+    ({ chromium } = await import("playwright"));
+  } catch {
+    throw new PdfUnavailableError("Playwright is not installed in this runtime.");
+  }
+  let browser;
+  try {
+    browser = await chromium.launch();
+  } catch (e: any) {
+    throw new PdfUnavailableError(
+      `Could not launch Chromium for PDF export (${e?.message ?? e}). Use DOCX/HTML, or run the API on a host with Chromium (see DEPLOY_API.md).`
+    );
+  }
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle" });
     const pdf = await page.pdf({ format: "Letter", printBackground: true });
-    return pdf;
+    return pdf as Buffer;
   } finally {
     await browser.close();
   }
@@ -110,10 +127,17 @@ export async function exportRoutes(app: FastifyInstance) {
     }
     // pdf
     const html = renderResumeHtml(resume);
-    const buf = await renderPdf(html);
-    reply
-      .header("content-type", "application/pdf")
-      .header("content-disposition", `attachment; filename="${resume.title}.pdf"`);
-    return reply.send(buf);
+    try {
+      const buf = await renderPdf(html);
+      reply
+        .header("content-type", "application/pdf")
+        .header("content-disposition", `attachment; filename="${resume.title}.pdf"`);
+      return reply.send(buf);
+    } catch (e) {
+      if (e instanceof PdfUnavailableError) {
+        return reply.code(503).send({ error: "pdf_unavailable", detail: e.message });
+      }
+      throw e;
+    }
   });
 }

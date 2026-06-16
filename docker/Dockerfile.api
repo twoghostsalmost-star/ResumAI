@@ -1,14 +1,29 @@
 FROM node:20-bookworm-slim
+
+# System libs: Chromium runtime deps (PDF export) + openssl/ca-certs (Prisma + TLS).
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssl ca-certificates \
     libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 \
     libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 \
     && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable
 WORKDIR /app
 COPY . .
+
+# Install deps, build the shared package, generate the Prisma client, build the API.
 RUN pnpm install --frozen-lockfile=false
-RUN pnpm build:shared && pnpm --filter @resumeforge/api build
-RUN npx playwright install chromium
+RUN pnpm build:shared \
+ && pnpm --filter @resumeforge/api exec prisma generate \
+ && pnpm --filter @resumeforge/api build
+
+# Chromium for the PDF export route.
+RUN pnpm --filter @resumeforge/api exec playwright install chromium
+
 WORKDIR /app/apps/api
 EXPOSE 3000
-CMD ["node", "dist/server.js"]
+
+# On boot: sync the schema to the database (creates tables on a fresh DB; no
+# migration files needed), then start the server. DATABASE_URL is provided by
+# the host at runtime.
+CMD ["sh", "-c", "pnpm exec prisma db push --skip-generate --accept-data-loss && node dist/server.js"]
