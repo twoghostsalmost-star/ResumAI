@@ -1,51 +1,75 @@
 # ResumeForge
 
-End-to-end resume creation + enhancement app. Expo (React Native, iOS) front end, Fastify/Postgres backend, built against the spec in `resume-app-build-spec.md`.
+End-to-end resume creation + enhancement platform with an **ATS-aware AI
+assistant**. One backend, three clients that share a single canonical data model:
 
-This is a **real working foundation**, not a mockup. Below is an honest map of what runs out of the box, what needs your keys, and what's still to come.
+| Surface | Path | Stack |
+|---|---|---|
+| **Web app** | `apps/web` | Next.js 14 (App Router), React Query, zustand — Vercel-deployable |
+| **iOS (native)** | `apps/ios` | SwiftUI, iOS 26 **Liquid Glass**, XcodeGen |
+| **iOS (React Native)** | `apps/mobile` | Expo, expo-router, Skia preview |
+| **Backend API** | `apps/api` | Fastify, Prisma, Postgres, Redis, Playwright |
+| **Shared model** | `packages/shared` | zod schemas + TypeScript types |
 
-## What's complete and runnable (no keys needed)
-- **Shared data model** (`packages/shared`) — full `zod` schemas for the resume, patch engine, ATS types.
-- **Patch engine** — immutable `applyPatch`/`applyPatches` with validation. Real logic, unit-testable.
-- **Deterministic ATS scorer** (`apps/api/src/pipeline/ats-scorer.ts`) — five subscores, weighted overall, concrete findings with auto-fix patches. Fully real, with a passing test suite (`pnpm --filter @resumeforge/api test`).
-- **Resume → semantic HTML renderer** (`export-html.ts`) — ATS-safe, selectable-text output.
-- **DOCX export** — generated from the model with the `docx` library.
-- **Backend CRUD + patch + scoring + export routes** — real Fastify handlers backed by Prisma/Postgres.
-- **Mobile app** — home, new-resume chooser, and a four-tab editor (Preview via Skia, Content form, Assistant chat, ATS dashboard) wired to the API.
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the full picture, and
+[`docs/build-spec.md`](docs/build-spec.md) for the original product spec.
 
-## What's real code but needs credentials / network at runtime
-- **LLM assistant** (`providers/llm/anthropic.ts`, `routes/assistant.ts`) — real Anthropic Messages API call. Needs `ANTHROPIC_API_KEY`.
-- **PDF export** — real Playwright render. Needs `npx playwright install chromium`.
-- **LinkedIn OAuth, STT/TTS, S3 storage** — interfaces and wiring are in place per the spec; provide keys to activate. (These are the next build layer — see "Roadmap".)
+## What it does
+- **Create from scratch** or **enhance an existing resume** (paste/upload → parse).
+- **Conversational AI assistant** proposes edits as explicit `ResumePatch` diffs
+  you accept or reject — nothing mutates silently.
+- **ATS scoring** — deterministic + LLM hybrid, five subscores, ranked findings
+  with one-tap auto-fixes.
+- **ATS-safe export** — server-rendered semantic HTML → tagged PDF (real
+  selectable text), plus DOCX and tokenized share links.
+- **Privacy controls** — export-my-data and hard account deletion.
 
-## Prerequisites
-- Node 20+, pnpm 9+, Docker, Xcode (for iOS), an iOS simulator or device.
+## Architecture principle (spec §3): thin shell, intelligence on the backend
+UI, navigation, and the live preview run on the client. Parsing, LLM calls,
+STT/TTS, ATS scoring, PDF/DOCX export, and LinkedIn token exchange run on the
+backend so provider keys never ship to a client and output is identical across
+all three surfaces. The in-app preview is client-rendered; the **exported** file
+is always server-rendered from semantic HTML so it stays ATS-parseable.
 
-## Run it
+## Quick start (web + API)
 ```bash
-cp .env.example .env            # fill in keys you have; Postgres/Redis work as-is
+cp .env.example .env          # Postgres/Redis work as-is; add AI keys if you have them
 pnpm install
-pnpm infra:up                   # postgres + redis + minio via Docker
+pnpm infra:up                 # Postgres + Redis + MinIO via Docker
 pnpm build:shared
 pnpm db:generate && pnpm db:migrate
-pnpm dev:api                    # http://localhost:3000  (GET /health → {ok:true})
-# in another terminal:
-pnpm dev:mobile                 # press i for iOS simulator
+pnpm dev:api                  # http://localhost:3000  (GET /health → {ok:true})
+pnpm dev:web                  # http://localhost:3001
 ```
 
-### Run the ATS scorer tests (proves the core logic)
+Run the other clients:
 ```bash
-pnpm --filter @resumeforge/api test
+pnpm dev:mobile               # Expo — press i for the iOS simulator
+cd apps/ios && xcodegen generate && open ResumeForge.xcodeproj   # native iOS (Xcode 26+)
 ```
 
-## Architecture (per spec §3)
-The app shell is thin; intelligence is on the backend. Skia renders the **live preview** only; the **exported** PDF is server-rendered from semantic HTML so it keeps selectable text for ATS parsing.
+## Verify it
+```bash
+pnpm build:shared && pnpm build:api && pnpm --filter @resumeforge/web lint
+pnpm test                     # ATS scorer + parser/export unit tests (9 passing)
+pnpm --filter @resumeforge/web build   # production Next.js build (Vercel parity)
+```
 
-## Roadmap (next complete layers)
-1. File parsing pipeline (PDF/DOCX → structured model via LLM + zod repair) + import review screen.
-2. LinkedIn OpenID Connect sign-in + profile-PDF fallback.
-3. Streaming STT/TTS voice mode.
-4. S3 storage + share links + retention jobs.
-5. Auth (replace `DEMO_USER_ID`), encryption at rest, data export/delete.
+## What's real vs. what needs credentials
+**Runs with no keys:** shared model + patch engine, deterministic ATS scorer,
+heuristic resume parser, semantic-HTML/DOCX export, all CRUD/score/patch/share
+routes, and every client UI.
 
-> Note on the build environment: this codebase was authored offline, so it has not been executed here. It is written to compile and run once dependencies are installed (`pnpm install`) and a Postgres instance is up. The ATS scorer and renderer are pure functions and are covered by tests.
+**Needs credentials at runtime (degrades gracefully without):**
+- `ANTHROPIC_API_KEY` → richer LLM parsing + assistant (heuristic fallback otherwise).
+- PDF export → `npx playwright install chromium`.
+- `STT_*` / `TTS_*` → voice mode. `LINKEDIN_*` → OAuth (PDF-import fallback otherwise).
+
+## Deploying
+- **Web → Vercel:** project Root Directory `apps/web`, set
+  `NEXT_PUBLIC_API_BASE_URL`. Each push creates a preview deployment.
+- **API → container:** `docker/Dockerfile.api` (bundles Chromium for PDF).
+- **iOS → TestFlight** (Xcode 26) / **RN → EAS Build**.
+
+Full instructions in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).

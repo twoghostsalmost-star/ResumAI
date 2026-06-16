@@ -163,7 +163,11 @@ export default function Editor() {
   }
 
   function AtsTab() {
-    const [score, setScore] = useState<AtsScoreResult | null>(resume!.atsScore ?? null);
+    // atsScore is attached by the API at runtime but is omitted from the shared
+    // Resume schema (it would create an import cycle), so read it via a cast.
+    const [score, setScore] = useState<AtsScoreResult | null>(
+      (resume as { atsScore?: AtsScoreResult }).atsScore ?? null
+    );
     const [busy, setBusy] = useState(false);
 
     async function run() {
