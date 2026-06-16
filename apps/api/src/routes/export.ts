@@ -15,23 +15,46 @@ import {
  * stack trace; DOCX/HTML export keep working. */
 class PdfUnavailableError extends Error {}
 
-async function renderPdf(html: string): Promise<Buffer> {
-  // Real Playwright render. Requires `npx playwright install chromium` and a
-  // runtime that allows launching Chromium (present in docker/Dockerfile.api).
+/** Launch Chromium. On a serverless host (Vercel/Lambda) use the bundled
+ * @sparticuz/chromium binary via playwright-core; elsewhere use full Playwright
+ * (installed in docker/Dockerfile.api). */
+async function launchBrowser() {
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  if (isServerless) {
+    try {
+      // Computed specifiers so TS doesn't require these optional deps at build.
+      const sparticuzSpec = "@sparticuz/chromium";
+      const pwCoreSpec = "playwright-core";
+      const chromium = ((await import(sparticuzSpec)) as any).default;
+      const { chromium: pw } = (await import(pwCoreSpec)) as any;
+      return await pw.launch({
+        args: chromium.args,
+        executablePath: await chromium.executablePath(),
+        headless: true,
+      });
+    } catch (e: any) {
+      throw new PdfUnavailableError(
+        `Serverless Chromium unavailable (${e?.message ?? e}). Use DOCX/HTML export, or run the API as a container (see DEPLOY_API.md).`
+      );
+    }
+  }
   let chromium;
   try {
     ({ chromium } = await import("playwright"));
   } catch {
     throw new PdfUnavailableError("Playwright is not installed in this runtime.");
   }
-  let browser;
   try {
-    browser = await chromium.launch();
+    return await chromium.launch();
   } catch (e: any) {
     throw new PdfUnavailableError(
       `Could not launch Chromium for PDF export (${e?.message ?? e}). Use DOCX/HTML, or run the API on a host with Chromium (see DEPLOY_API.md).`
     );
   }
+}
+
+async function renderPdf(html: string): Promise<Buffer> {
+  const browser = await launchBrowser();
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle" });

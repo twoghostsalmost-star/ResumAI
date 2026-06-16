@@ -60,19 +60,17 @@ pnpm workspace at the repo root and installs from there; the `vercel.json` in
 ## What about the backend API?
 
 The web app is a **thin client** — it needs the ResumeForge API running
-somewhere reachable over HTTPS. Do **not** deploy `apps/api` to Vercel: PDF
-export launches headless Chromium (Playwright), which exceeds typical
-serverless limits. Deploy it as a long-lived container instead:
+somewhere reachable over HTTPS. Two options:
 
-```bash
-docker build -f docker/Dockerfile.api -t resumeforge-api .
-docker run -p 3000:3000 --env-file .env resumeforge-api
-```
+1. **All on Vercel (recommended for free hosting)** — deploy `apps/api` as a
+   second Vercel project (Serverless Functions) with a free **Neon** Postgres
+   from the Vercel Marketplace connector. Full step-by-step:
+   **[`DEPLOY_API_VERCEL.md`](DEPLOY_API_VERCEL.md)**. The only caveat is PDF
+   export on serverless (DOCX/HTML always work; details in that doc).
 
-**The easiest path is the one-click Render Blueprint** — see
-[`DEPLOY_API.md`](DEPLOY_API.md), which provisions Postgres + the API and wires
-them together (the container runs `prisma db push` on boot, so no manual
-migration). Railway and Fly.io instructions are there too.
+2. **Container host (most robust PDF export)** — run the provided Dockerfile on
+   Render / Railway / Fly. One-click Render Blueprint and others in
+   **[`DEPLOY_API.md`](DEPLOY_API.md)**.
 
 Then set the web app's `NEXT_PUBLIC_API_BASE_URL` to that API's URL and redeploy
 (or just push — the env var is read at build/runtime).
