@@ -2,39 +2,52 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Descope } from "@descope/nextjs-sdk";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { setToken, setStoredUser } from "@/lib/auth";
 import { useAuth } from "@/lib/useAuthGate";
 import { AppBar } from "@/components/AppBar";
 
+type Mode = "login" | "register";
+
 export default function LandingPage() {
   const router = useRouter();
   const { ready, authed } = useAuth();
+
+  const [mode, setMode] = useState<Mode>("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (ready && authed) router.replace("/dashboard");
   }, [ready, authed, router]);
 
-  // Descope ran the flow (email / Google / Apple, all configured in its console)
-  // and handed us a session JWT. Exchange it for the app's own token so every
-  // API route keeps working unchanged.
-  async function handleSuccess(e: CustomEvent) {
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setError(null);
-    const detail = e.detail as { sessionJwt?: string };
-    const sessionJwt = detail?.sessionJwt;
-    if (!sessionJwt) {
-      setError("Sign-in didn’t return a session. Please try again.");
-      return;
-    }
+    setBusy(true);
     try {
-      const res = await api.exchangeDescope(sessionJwt);
+      const res =
+        mode === "register"
+          ? await api.register(email.trim(), password, name.trim() || undefined)
+          : await api.login(email.trim(), password);
       setToken(res.token);
       setStoredUser(res.user);
       router.replace("/dashboard");
-    } catch {
-      setError("Couldn’t complete sign-in. Is the API reachable and Descope configured?");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setError("Incorrect email or password.");
+      } else if (err instanceof ApiError && err.status === 409) {
+        setError("That email is already registered. Try signing in instead.");
+      } else if (err instanceof ApiError && err.status === 400) {
+        setError("Password must be at least 8 characters.");
+      } else {
+        setError("Something went wrong. Is the API reachable?");
+      }
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -62,16 +75,70 @@ export default function LandingPage() {
             </p>
 
             <div className="card" style={{ maxWidth: 440, marginTop: "1.75rem" }}>
-              <h2 className="section-title">Sign in</h2>
+              <h2 className="section-title">
+                {mode === "register" ? "Create your account" : "Sign in"}
+              </h2>
               <p className="faint" style={{ marginTop: "-0.4rem", fontSize: "0.85rem" }}>
-                Continue with email, Google, or Apple.
+                {mode === "register"
+                  ? "Sign up with your email and a password."
+                  : "Welcome back — sign in with your email and password."}
               </p>
               {error ? <div className="error-banner">{error}</div> : null}
-              <Descope
-                flowId="sign-up-or-in"
-                onSuccess={handleSuccess}
-                onError={() => setError("Sign-in failed. Please try again.")}
-              />
+
+              <form onSubmit={onSubmit}>
+                {mode === "register" ? (
+                  <div className="field">
+                    <label className="label">Name</label>
+                    <input
+                      type="text"
+                      autoComplete="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Ada Lovelace"
+                    />
+                  </div>
+                ) : null}
+                <div className="field">
+                  <label className="label">Email</label>
+                  <input
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                  />
+                </div>
+                <div className="field">
+                  <label className="label">Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={mode === "register" ? 8 : undefined}
+                    autoComplete={mode === "register" ? "new-password" : "current-password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={mode === "register" ? "At least 8 characters" : "Your password"}
+                  />
+                </div>
+                <button className="btn primary" type="submit" disabled={busy} style={{ width: "100%" }}>
+                  {busy ? "Please wait…" : mode === "register" ? "Create account" : "Sign in"}
+                </button>
+              </form>
+
+              <p className="faint" style={{ marginTop: "1rem", fontSize: "0.85rem" }}>
+                {mode === "register" ? "Already have an account? " : "Don’t have an account? "}
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => {
+                    setError(null);
+                    setMode(mode === "register" ? "login" : "register");
+                  }}
+                >
+                  {mode === "register" ? "Sign in" : "Create one"}
+                </button>
+              </p>
             </div>
           </section>
         </div>

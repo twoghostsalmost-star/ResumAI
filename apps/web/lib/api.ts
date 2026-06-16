@@ -78,10 +78,16 @@ export type LinkedInAuthUrl = { url: string; state: string };
 
 export const api = {
   // ---- auth ----
-  createSession: (email: string, name?: string) =>
-    req<AuthSessionResponse>("/auth/session", {
+  register: (email: string, password: string, name?: string) =>
+    req<AuthSessionResponse>("/auth/register", {
       method: "POST",
-      body: { email, ...(name ? { name } : {}) },
+      body: { email, password, ...(name ? { name } : {}) },
+    }),
+
+  login: (email: string, password: string) =>
+    req<AuthSessionResponse>("/auth/login", {
+      method: "POST",
+      body: { email, password },
     }),
 
   me: () => req<Me>("/me"),
@@ -147,11 +153,4 @@ export const api = {
 
   // ---- linkedin ----
   linkedinAuthUrl: () => req<LinkedInAuthUrl>("/linkedin/auth-url"),
-
-  // ---- Descope: exchange a validated Descope session JWT for an app token ----
-  exchangeDescope: (sessionToken: string) =>
-    req<AuthSessionResponse>("/auth/descope", {
-      method: "POST",
-      body: { sessionToken },
-    }),
 };
