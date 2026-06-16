@@ -147,4 +147,8 @@ export const api = {
 
   // ---- linkedin ----
   linkedinAuthUrl: () => req<LinkedInAuthUrl>("/linkedin/auth-url"),
+
+  // ---- social sign-in (full-page redirects handled by the API) ----
+  googleSignInUrl: `${API_BASE}/auth/google/start`,
+  appleSignInUrl: `${API_BASE}/auth/apple/start`,
 };
