@@ -4,11 +4,21 @@ import { z } from "zod";
 import { prisma } from "../db.js";
 
 const CreateResumeBody = z.object({
-  userId: z.string(),
+  userId: z.string().optional(),
   title: z.string().optional(),
   source: z.enum(["scratch", "upload", "linkedin"]).optional(),
   data: ResumeSchema.partial().optional(),
 });
+
+/** Ensure the acting user exists so resume creation's FK is satisfied even for
+ * the demo/anonymous fallback identity. */
+async function ensureUser(userId: string) {
+  await prisma.user.upsert({
+    where: { id: userId },
+    update: {},
+    create: { id: userId, email: `${userId}@local.resumeforge` },
+  });
+}
 
 function emptyResume(userId: string, title: string, source: string) {
   const now = new Date().toISOString();
@@ -29,12 +39,14 @@ export async function resumeRoutes(app: FastifyInstance) {
   // Create
   app.post("/resumes", async (req, reply) => {
     const body = CreateResumeBody.parse(req.body);
-    const base = emptyResume(body.userId, body.title ?? "Untitled Resume", body.source ?? "scratch");
-    const data = body.data ? ResumeSchema.parse({ ...base, ...body.data, userId: body.userId }) : base;
+    const userId = body.userId ?? req.userId;
+    await ensureUser(userId);
+    const base = emptyResume(userId, body.title ?? "Untitled Resume", body.source ?? "scratch");
+    const data = body.data ? ResumeSchema.parse({ ...base, ...body.data, userId }) : base;
 
     const row = await prisma.resume.create({
       data: {
-        userId: body.userId,
+        userId,
         title: data.title,
         source: data.source,
         targetRole: data.targetRole,
@@ -56,7 +68,8 @@ export async function resumeRoutes(app: FastifyInstance) {
 
   // List for a user
   app.get("/resumes", async (req) => {
-    const { userId } = req.query as { userId: string };
+    const q = req.query as { userId?: string };
+    const userId = q.userId ?? req.userId;
     const rows = await prisma.resume.findMany({
       where: { userId },
       orderBy: { updatedAt: "desc" },
