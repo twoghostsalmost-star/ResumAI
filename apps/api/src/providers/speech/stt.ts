@@ -8,7 +8,7 @@ class DeepgramSTT implements SpeechToText {
     const res = await fetch("https://api.deepgram.com/v1/listen?smart_format=true&model=nova-2", {
       method: "POST",
       headers: { Authorization: `Token ${config.stt.apiKey}`, "content-type": mime || "audio/wav" },
-      body: audio,
+      body: new Uint8Array(audio),
     });
     if (!res.ok) throw new Error(`Deepgram error ${res.status}: ${await res.text()}`);
     const data: any = await res.json();
@@ -21,7 +21,7 @@ class WhisperSTT implements SpeechToText {
   async transcribe(audio: Buffer, mime: string): Promise<Transcript> {
     if (!config.stt.apiKey) throw new Error("STT_API_KEY is not configured");
     const form = new FormData();
-    form.append("file", new Blob([audio], { type: mime || "audio/wav" }), "audio.wav");
+    form.append("file", new Blob([new Uint8Array(audio)], { type: mime || "audio/wav" }), "audio.wav");
     form.append("model", "whisper-1");
     const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",

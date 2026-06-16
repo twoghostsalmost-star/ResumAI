@@ -6,7 +6,9 @@ export const LinkSchema = z.object({
 });
 
 export const BasicsSchema = z.object({
-  fullName: z.string().min(1),
+  // Allowed to be empty: scratch resumes start blank and imports may not detect
+  // a name. The review screen / editor prompts the user to fill it in.
+  fullName: z.string().default(""),
   headline: z.string().optional(),
   email: z.string().email().optional(),
   phone: z.string().optional(),
